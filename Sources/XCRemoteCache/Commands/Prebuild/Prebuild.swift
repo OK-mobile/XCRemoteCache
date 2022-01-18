@@ -57,7 +57,7 @@ class Prebuild {
 
     // swiftlint:disable:next function_body_length
     public func perform() throws -> PrebuildResult {
-        guard case .available(let commit) = context.remoteCommit else {
+        guard case .available(let commit) = context.remoteCommit, !isUnavailableContext() else {
             return .incompatible
         }
         do {
@@ -113,5 +113,12 @@ class Prebuild {
     public func generateFingerprint(for files: [URL]) throws -> Fingerprint {
         try files.forEach(fingerprintAccumulator.append)
         return try fingerprintAccumulator.generate()
+    }
+    
+    private func isUnavailableContext() -> Bool {
+        guard let excludedDownloadTargets = context.excludedDownloadTargets else {
+            return false
+        }
+        return excludedDownloadTargets.contains(context.targetName)
     }
 }

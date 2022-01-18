@@ -155,6 +155,7 @@ class NetworkClientImpl: NetworkClient {
         var uploadRequest = request
         uploadRequest.httpMethod = Self.uploadMethod
         let dataFromFile = try? Data(contentsOf: input)
+        uploadRequest.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         setupAuthenticationSignatureIfPresent(&uploadRequest, data: dataFromFile)
         infoLog("Making upload request to \(uploadRequest) with \(retries) retries.")
         let dataTask = session.uploadTask(with: uploadRequest, fromFile: input) { _, response, error in

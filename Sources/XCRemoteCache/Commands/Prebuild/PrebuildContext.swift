@@ -43,6 +43,8 @@ public struct PrebuildContext {
     let targetName: String
     /// List of all targets to downloaded from the thinning aggregation target
     var thinnedTargets: [String]?
+    /// List of all excluder targets to downloaded
+    var excludedDownloadTargets: [String]?
 }
 
 extension PrebuildContext {
@@ -64,5 +66,6 @@ extension PrebuildContext {
         self.targetName = targetName
         let thinFocusedTargetsString: String? = env.readEnv(key: "SPT_XCREMOTE_CACHE_THINNED_TARGETS")
         thinnedTargets = thinFocusedTargetsString?.split(separator: ",").map(String.init)
+        excludedDownloadTargets = config.excludedDownloadTargets
     }
 }
