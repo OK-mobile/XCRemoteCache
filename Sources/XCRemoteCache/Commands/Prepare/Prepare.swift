@@ -100,6 +100,12 @@ class Prepare: PrepareLogic {
                     return try enableCommit(sha: sha, age: index + 1)
                 }
             }
+            let allPrimaryBranchCommits = try gitClient.getPreviousCommitsFromPrimryBranch(maximum: context.maximumSha)
+            for (index, sha) in allPrimaryBranchCommits.enumerated() {
+                if try isArtifactAvailable(for: sha) {
+                    return try enableCommit(sha: sha, age: index + 1)
+                }
+            }
             infoLog("No artifacts available")
             try disable()
         } catch {
