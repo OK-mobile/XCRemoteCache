@@ -34,15 +34,9 @@ class StringDependenciesRemapperFactory {
             throw StringDependenciesRemapperFactoryError.mappingKeyDuplication
         }
         let mappingOrderKeys =  orderKeys + customMappings.keys
-        let mappings: [StringDependenciesRemapper.Mapping] = mappingOrderKeys.compactMap { key in
-            guard let localValue: String = mappingMap.readEnv(key: key) else {
-                return nil
-            }
-            let canonicalValue = try? URL(fileURLWithPath: localValue, isDirectory: true).resourceValues(forKeys: [.canonicalPathKey])
-            guard let canonicalPath = canonicalValue?.canonicalPath else {
-                return StringDependenciesRemapper.Mapping(generic: "$(\(key))", local: localValue)
-            }
-            return StringDependenciesRemapper.Mapping(generic: "$(\(key))", local: canonicalPath)
+        let mappings: [StringDependenciesRemapper.Mapping] = try mappingOrderKeys.map { key in
+            let localValue: String = try mappingMap.readEnv(key: key)
+            return StringDependenciesRemapper.Mapping(generic: "$(\(key))", local: localValue)
         }
         return StringDependenciesRemapper(mappings: mappings)
     }

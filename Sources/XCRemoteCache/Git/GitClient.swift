@@ -53,8 +53,6 @@ protocol GitClient {
     func getShaDate(sha: String) throws -> Date
     /// Returns parent commits from a starting sha up to `maximum` commits
     func getPreviousCommits(starting sha: String, maximum: Int) throws -> [String]
-    /// Returns parent commits from a primary branch up to `maximum` commits
-    func getPreviousCommitsFromPrimryBranch(maximum: Int) throws -> [String]
 }
 
 class GitClientImpl: GitClient {
@@ -98,14 +96,6 @@ class GitClientImpl: GitClient {
 
     func getPreviousCommits(starting sha: String, maximum: Int) throws -> [String] {
         let commits = try git("log", "-\(maximum)", Self.gitFormattingArg, "--first-parent", sha)
-        return commits.split(separator: "\n").map(String.init)
-    }
-    
-    func getPreviousCommitsFromPrimryBranch(maximum: Int) throws -> [String] {
-        guard let remote = remoteName else {
-            throw GitClientError.missingPrimaryRepo(primary.repoLocation)
-        }
-        let commits = try git("log", "-\(maximum)", Self.gitFormattingArg, "--first-parent", "\(remote)/\(primary.branch)")
         return commits.split(separator: "\n").map(String.init)
     }
 
