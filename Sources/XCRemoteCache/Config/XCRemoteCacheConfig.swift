@@ -133,6 +133,8 @@ public struct XCRemoteCacheConfig: Encodable {
     var rewrittenEnvs: [String] = DependenciesMapping.rewrittenEnvs
     /// List of all excluder targets to downloaded
     var excludedDownloadTargets: [String]?
+    /// If true, SSL certificate validation is disabled
+    var disableCertificateVerification: Bool = false
 }
 
 extension XCRemoteCacheConfig {
@@ -187,6 +189,7 @@ extension XCRemoteCacheConfig {
         merge.rewrittenEnvs = rewrittenEnvs + (scheme.rewrittenEnvs ?? [])
         merge.excludedDownloadTargets = scheme.excludedDownloadTargets ?? excludedDownloadTargets
         
+        merge.disableCertificateVerification = scheme.disableCertificateVerification ?? disableCertificateVerification
         return merge
     }
 
@@ -249,6 +252,7 @@ struct ConfigFileScheme: Decodable {
     let outOfBandMappings: [String: String]?
     let rewrittenEnvs: [String]?
     let excludedDownloadTargets: [String]?
+    let disableCertificateVerification: Bool?
 
     // Yams library doesn't support encoding strategy, see https://github.com/jpsim/Yams/issues/84
     enum CodingKeys: String, CodingKey {
@@ -294,6 +298,7 @@ struct ConfigFileScheme: Decodable {
         case outOfBandMappings = "out_of_band_mappings"
         case rewrittenEnvs = "rewritten_envs"
         case excludedDownloadTargets = "excluded_download_targets"
+        case disableCertificateVerification = "disable_certificate_verification"
     }
 }
 
