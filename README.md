@@ -45,6 +45,7 @@ _XCRemoteCache is a remote cache tool for Xcode projects. It reuses target artif
 - [FAQ](#faq)
 - [Development](#development)
 - [Release](#release)
+  * [Releasing CocoaPods plugin](#releasing-cocoapods-plugin)
   * [Building release package](#building-release-package)
 - [Contributing](#contributing)
 - [Code of conduct](#code-of-conduct)
@@ -310,7 +311,7 @@ _Note that for the `producer` mode, the prebuild build phase and `xccc`, `xcld`,
 | `aws_region` | Region for AWS V4 Signature Authorization. E.g. `eu`.  | `""` | ⬜️ |
 | `aws_service` | Service for AWS V4 Signature Authorization. E.g. `storage`. | `""` | ⬜️ |
 | `out_of_band_mappings` | A dictionary of files path remapping that should be applied to make it absolute path agnostic on a list of dependencies. Useful if a project refers files out of repo root, either compilation files or precompiled dependencies. Keys represent generic replacement and values are substrings that should be replaced. Example: for mapping `["COOL_LIBRARY": "/CoolLibrary"]` `/CoolLibrary/main.swift`will be represented as `$(COOL_LIBRARY)/main.swift`). Warning: remapping order is not-deterministic so avoid remappings with multiple matchings. | `[:]` | ⬜️ |
-
+| `disable_certificate_verification` | A Boolean value that opts-in SSL certificate validation is disabled | `false` | ⬜️ |
 
 ## Backend cache server
 
@@ -420,6 +421,12 @@ Follow the [Development](docs/Development.md) guide. It has all the information 
 
 To release a version, in [Releases](https://github.com/spotify/XCRemoteCache/releases) draft a new release with `v0.3.0{-rc0}` tag format. 
 Packages with binaries will be automatically uploaded to the GitHub [Releases](https://github.com/spotify/XCRemoteCache/releases) page.
+
+### Releasing CocoaPods plugin
+
+Bump a gem version defined in [gem_version.rb](cocoapods-plugin/lib/cocoapods-xcremotecache/gem_version.rb) and create a new release described above.
+
+A plugin is automatically uploaded to [RubyGems](https://rubygems.org/gems/cocoapods-xcremotecache) if a given version doesn't exist yet.
 
 ### Building release package
 

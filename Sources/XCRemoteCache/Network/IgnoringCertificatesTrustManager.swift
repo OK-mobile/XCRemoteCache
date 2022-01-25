@@ -19,26 +19,14 @@
 
 import Foundation
 
-enum SwiftmoduleFileExtensionType {
-    case required
-    case optional
-}
-
-// Type of the file that constitutes a full modulemap package
-// RawValue corresponds to the file extension
-enum SwiftmoduleFileExtension: String {
-    case swiftmodule
-    case swiftdoc
-    case swiftsourceinfo
-    case swiftinterface
-}
-
-extension SwiftmoduleFileExtension {
-    /// List of all swiftmodule extensions that should be copied to the artifact
-    static let SwiftmoduleExtensions: [SwiftmoduleFileExtension: SwiftmoduleFileExtensionType] = [
-        .swiftmodule: .required,
-        .swiftdoc: .required,
-        .swiftsourceinfo: .optional,
-        .swiftinterface: .optional,
-    ]
+final class IgnoringCertificatesTrustManager: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        let urlCredential = URLCredential(trust: serverTrust)
+        completionHandler(.useCredential, urlCredential)
+    }
 }
