@@ -47,7 +47,7 @@ class GitClientFake: GitClient {
         return shaHistory.suffix(from: index).suffix(maximum).map { $0.sha }
     }
     
-    func getPreviousCommitsFromPrimryBranch(maximum: Int) throws -> [String] {
+    func getPreviousCommitsFromPrimaryBranch(maximum: Int) throws -> [String] {
         shaHistory.suffix(maximum).compactMap({ $0.sha })
     }
 }
