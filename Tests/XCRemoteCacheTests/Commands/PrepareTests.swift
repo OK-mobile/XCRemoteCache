@@ -62,7 +62,7 @@ class PrepareTests: XCTestCase {
             cacheInvalidator: CacheInvalidatorFake()
         )
 
-        let result = try prepare.prepare()
+        let result = try prepare.prepare(disabled: false)
 
         XCTAssertEqual(result, .failed)
     }
@@ -85,7 +85,7 @@ class PrepareTests: XCTestCase {
             cacheInvalidator: CacheInvalidatorFake()
         )
 
-        let result = try prepare.prepare()
+        let result = try prepare.prepare(disabled: false)
 
         XCTAssertEqual(result, .preparedFor(sha: .init(sha: "2", age: 0), recommendedCacheAddress: remoteURL))
     }

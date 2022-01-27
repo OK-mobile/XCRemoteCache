@@ -61,6 +61,16 @@ public class XCPostbuild {
             fileManager: fileManager
         )
 
+        guard !config.disabledByUser else {
+            do {
+                try modeController.disable()
+                try cacheHitLogger.logMiss()
+                printToUser("Disabled remote cache for \(context.targetName) by user")
+            } catch {
+                exit(1, "FATAL: Postbuild finishing failed with error: \(error)")
+            }
+            return
+        }
 
         do {
             // Initialize dependencies

@@ -33,7 +33,7 @@ enum PrepareResult: Equatable {
 }
 
 protocol PrepareLogic {
-    func prepare() throws -> PrepareResult
+    func prepare(disabled: Bool) throws -> PrepareResult
 }
 
 enum PrepareError: Error {
@@ -72,8 +72,12 @@ class Prepare: PrepareLogic {
     }
 
     /// Finds the best commit with generated artifacts to use
-    func prepare() throws -> PrepareResult {
+    func prepare(disabled: Bool) throws -> PrepareResult {
         do {
+            guard !disabled else {
+                try disable()
+                return .failed
+            }
             guard fileAccessor.fileExists(atPath: PhaseCacheModeController.xcodeSelectLink.path) else {
                 throw PrepareError.missingXcodeSelectDirectory
             }
@@ -100,7 +104,7 @@ class Prepare: PrepareLogic {
                     return try enableCommit(sha: sha, age: index + 1)
                 }
             }
-            let allPrimaryBranchCommits = try gitClient.getPreviousCommitsFromPrimryBranch(maximum: context.maximumSha)
+            let allPrimaryBranchCommits = try gitClient.getPreviousCommitsFromPrimaryBranch(maximum: context.maximumSha)
             for (index, sha) in allPrimaryBranchCommits.enumerated() {
                 if try isArtifactAvailable(for: sha) {
                     return try enableCommit(sha: sha, age: index + 1)
@@ -129,5 +133,7 @@ class Prepare: PrepareLogic {
 
     private func disable() throws {
         try globalCacheSwitcher.disable()
+        try globalCacheSwitcher.enable(sha: "")
+        try ccBuilder.compile(to: context.xcccCommand, commitSha: "")
     }
 }
