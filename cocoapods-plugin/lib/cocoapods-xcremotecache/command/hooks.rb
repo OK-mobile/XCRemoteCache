@@ -82,8 +82,8 @@ module CocoapodsXCRemoteCacheModifier
         end
 
         mode = @@configuration['mode']
-        unless mode == 'consumer' || mode == 'producer'
-          throw "Incorrect 'mode' value. Allowed values are ['consumer', 'producer'], but you provided '#{mode}'. A typo?"
+        unless mode == 'consumer' || mode == 'producer' || mode == 'producer-fast'
+          throw "Incorrect 'mode' value. Allowed values are ['consumer', 'producer', 'producer-fast'], but you provided '#{mode}'. A typo?"
         end
 
         unless mode == 'consumer' || @@configuration.key?('final_target')
@@ -103,7 +103,7 @@ module CocoapodsXCRemoteCacheModifier
       # @param repo_distance [Integer] distance from the git repo root to the target's $SRCROOT 
       # @param xc_location [String] path to the dir with all XCRemoteCache binaries, relative to the repo root
       # @param xc_cc_path [String] path to the XCRemoteCache clang wrapper, relative to the repo root
-      # @param mode [String] mode name ('consumer', 'producer' etc.)
+      # @param mode [String] mode name ('consumer', 'producer', 'producer-fast' etc.)
       # @param exclude_build_configurations [String[]] list of targets that should have disabled remote cache
       # @param final_target [String] name of target that should trigger marking
       def self.enable_xcremotecache(target, repo_distance, xc_location, xc_cc_path, mode, exclude_build_configurations, final_target)
@@ -114,6 +114,8 @@ module CocoapodsXCRemoteCacheModifier
           next if exclude_build_configurations.include?(config.name)
           if mode == 'consumer'
             config.build_settings['CC'] = ["$SRCROOT/#{parent_dir(xc_cc_path, repo_distance)}"]
+          elsif mode == 'producer' || mode == 'producer-fast'
+            config.build_settings.delete('CC') if config.build_settings.key?('CC')
           end
           config.build_settings['SWIFT_EXEC'] = ["$SRCROOT/#{srcroot_relative_xc_location}/xcswiftc"]
           config.build_settings['LIBTOOL'] = ["$SRCROOT/#{srcroot_relative_xc_location}/xclibtool"]
@@ -133,7 +135,8 @@ module CocoapodsXCRemoteCacheModifier
               phase.name != nil && phase.name.start_with?("[XCRC] Prebuild")
             end
           end
-          prebuild_script = existing_prebuild_script || target.new_shell_script_build_phase("[XCRC] Prebuild")
+
+          prebuild_script = existing_prebuild_script || target.new_shell_script_build_phase("[XCRC] Prebuild #{target.name}")
           prebuild_script.shell_script = "\"$SCRIPT_INPUT_FILE_0\""
           prebuild_script.input_paths = ["$SRCROOT/#{srcroot_relative_xc_location}/xcprebuild"]
           prebuild_script.output_paths = [
@@ -142,9 +145,10 @@ module CocoapodsXCRemoteCacheModifier
           ]
           prebuild_script.dependency_file = "$(TARGET_TEMP_DIR)/prebuild.d"
 
-          # Move prebuild (last element) to the first position (to make it real 'prebuild')
-          target.build_phases.rotate!(-1) if existing_prebuild_script.nil?
-        elsif mode == 'producer'
+          # Move prebuild (last element) to the position before compile sources phase (to make it real 'prebuild')
+          compile_phase_index = target.build_phases.index(target.source_build_phase)
+          target.build_phases.insert(compile_phase_index, target.build_phases.delete(prebuild_script))
+        elsif mode == 'producer' || mode == 'producer-fast'
           # Delete existing prebuild build phase (to support switching between modes)
           target.build_phases.delete_if do |phase|
             if phase.respond_to?(:name)
@@ -159,7 +163,7 @@ module CocoapodsXCRemoteCacheModifier
             phase.name != nil && phase.name.start_with?("[XCRC] Postbuild")
           end
         end
-        postbuild_script = existing_postbuild_script || target.new_shell_script_build_phase("[XCRC] Postbuild")
+        postbuild_script = existing_postbuild_script || target.new_shell_script_build_phase("[XCRC] Postbuild #{target.name}")
         postbuild_script.shell_script = "\"$SCRIPT_INPUT_FILE_0\""
         postbuild_script.input_paths = ["$SRCROOT/#{srcroot_relative_xc_location}/xcpostbuild"]
         postbuild_script.output_paths = [
@@ -169,7 +173,7 @@ module CocoapodsXCRemoteCacheModifier
         postbuild_script.dependency_file = "$(TARGET_TEMP_DIR)/postbuild.d"
 
         # Mark a sha as ready for a given platform and configuration when building the final_target
-        if mode == 'producer' && target.name == final_target
+        if (mode == 'producer' || mode == 'producer-fast') && target.name == final_target
           existing_mark_script = target.build_phases.detect do |phase|
             if phase.respond_to?(:name)
               phase.name != nil && phase.name.start_with?("[XCRC] Mark")
@@ -194,8 +198,9 @@ module CocoapodsXCRemoteCacheModifier
           config.build_settings.delete('SWIFT_EXEC') if config.build_settings.key?('SWIFT_EXEC')
           config.build_settings.delete('LIBTOOL') if config.build_settings.key?('LIBTOOL')
           config.build_settings.delete('LD') if config.build_settings.key?('LD')
-          # Add Fake src root for ObjC & Swift
+          # Remove Fake src root for ObjC & Swift
           config.build_settings.delete('XCREMOTE_CACHE_FAKE_SRCROOT')
+          config.build_settings.delete('XCRC_PLATFORM_PREFERRED_ARCH')
           remove_cflags!(config.build_settings, '-fdebug-prefix-map')
           remove_swiftflags!(config.build_settings, '-debug-prefix-map')
         end
@@ -257,14 +262,14 @@ module CocoapodsXCRemoteCacheModifier
       end
 
       def self.add_cflags!(options, key, value)
-        return if options.fetch('OTHER_CFLAGS',[]).include?(' ' + value)
-        options['OTHER_CFLAGS'] = remove_cflags!(options, key) << " #{key}=#{value}" 
+        return if options.fetch('OTHER_CFLAGS',[]).include?(value)
+        options['OTHER_CFLAGS'] = remove_cflags!(options, key) << "#{key}=#{value}" 
       end
 
       def self.remove_cflags!(options, key)
         cflags_arr = options.fetch('OTHER_CFLAGS', ['$(inherited)'])
         cflags_arr = [cflags_arr] if cflags_arr.kind_of? String
-        options['OTHER_CFLAGS'] = cflags_arr.delete_if {|flag| flag.start_with?(" #{key}=") }
+        options['OTHER_CFLAGS'] = cflags_arr.delete_if {|flag| flag.include?("#{key}=") }
         options['OTHER_CFLAGS']
       end
 
@@ -279,11 +284,26 @@ module CocoapodsXCRemoteCacheModifier
       end
 
       # Uninstall the XCRemoteCache
-      def self.disable_xcremotecache(user_project)
+      def self.disable_xcremotecache(user_project, pods_project = nil)
         user_project.targets.each do |target|
           disable_xcremotecache_for_target(target)
         end
         user_project.save()
+
+        unless pods_project.nil?
+          pods_project.native_targets.each do |target|
+            disable_xcremotecache_for_target(target)
+          end
+          pods_proj_directory = pods_project.project_dir
+          pods_project.root_object.project_references.each do |subproj_ref|
+            generated_project = Xcodeproj::Project.open("#{pods_proj_directory}/#{subproj_ref[:project_ref].path}")
+            generated_project.native_targets.each do |target|
+              disable_xcremotecache_for_target(target)
+            end
+            generated_project.save()
+          end
+          pods_project.save()
+        end
 
         # Remove .lldbinit rewrite
         save_lldbinit_rewrite(nil) unless !@@configuration['modify_lldb_init']
@@ -375,7 +395,9 @@ module CocoapodsXCRemoteCacheModifier
           # Always integrate XCRemoteCache to all Pods, in case it will be needed later
           unless installer_context.pods_project.nil?
             # Attach XCRemoteCache to Pods targets
-            installer_context.pods_project.targets.each do |target|
+            # Enable only for native targets which can have compilation steps
+            installer_context.pods_project.native_targets.each do |target|
+                next if target.source_build_phase.files_references.empty?
                 next if target.name.start_with?("Pods-")
                 next if target.name.end_with?("Tests")
                 next if exclude_targets.include?(target.name)
@@ -384,6 +406,18 @@ module CocoapodsXCRemoteCacheModifier
 
             # Create .rcinfo into `Pods` directory as that .xcodeproj reads configuration from .xcodeproj location
             pods_proj_directory = installer_context.sandbox_root
+
+            # Attach XCRemoteCache to Generated Pods projects
+            installer_context.pods_project.root_object.project_references.each do |subproj_ref|
+                generated_project = Xcodeproj::Project.open("#{pods_proj_directory}/#{subproj_ref[:project_ref].path}")
+                generated_project.native_targets.each do |target|
+                    next if target.source_build_phase.files_references.empty?
+                    next if target.name.end_with?("Tests")
+                    next if exclude_targets.include?(target.name)
+                    enable_xcremotecache(target, 1, xcrc_location, xccc_location, mode, exclude_build_configurations, final_target)
+                end
+                generated_project.save()
+            end
 
             # Manual Pods/.rcinfo generation
             
@@ -406,12 +440,12 @@ module CocoapodsXCRemoteCacheModifier
             prepare_result = YAML.load`#{xcrc_location_absolute}/xcprepare --configuration #{check_build_configuration} --platform #{check_platform}`
             unless prepare_result['result'] || mode != 'consumer'
               # Uninstall the XCRemoteCache for the consumer mode
-              disable_xcremotecache(user_project)
+              disable_xcremotecache(user_project, installer_context.pods_project)
               Pod::UI.puts "[XCRC] XCRemoteCache disabled - no artifacts available"
               next
             end
           rescue => error
-            disable_xcremotecache(user_project)
+            disable_xcremotecache(user_project, installer_context.pods_project)
             Pod::UI.puts "[XCRC] XCRemoteCache failed with an error: #{error}."
             next
           end
@@ -436,7 +470,7 @@ module CocoapodsXCRemoteCacheModifier
         rescue Exception => e
           Pod::UI.puts "[XCRC] XCRemoteCache disabled with error: #{e}"
           puts e.full_message(highlight: true, order: :top)
-          disable_xcremotecache(user_project)
+          disable_xcremotecache(user_project, installer_context.pods_project)
         end
       end
     end

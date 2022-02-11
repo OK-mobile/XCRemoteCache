@@ -21,7 +21,6 @@ import Foundation
 @testable import XCRemoteCache
 
 class GitClientFake: GitClient {
-    
     private let shaHistory: [(sha: String, date: Date)]
     private let primaryBranchIndex: Int
 
@@ -45,9 +44,5 @@ class GitClientFake: GitClient {
     func getPreviousCommits(starting sha: String, maximum: Int) throws -> [String] {
         let index = try shaHistory.firstIndex(where: { $0.sha == sha }).unwrap()
         return shaHistory.suffix(from: index).suffix(maximum).map { $0.sha }
-    }
-    
-    func getPreviousCommitsFromPrimaryBranch(maximum: Int) throws -> [String] {
-        shaHistory.suffix(maximum).compactMap({ $0.sha })
     }
 }

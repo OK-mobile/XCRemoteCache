@@ -61,23 +61,13 @@ public class XCPostbuild {
             fileManager: fileManager
         )
 
-        guard !config.disabledByUser else {
-            do {
-                try modeController.disable()
-                try cacheHitLogger.logMiss()
-                printToUser("Disabled remote cache for \(context.targetName) by user")
-            } catch {
-                exit(1, "FATAL: Postbuild finishing failed with error: \(error)")
-            }
-            return
-        }
 
         do {
             // Initialize dependencies
             let primaryGitBranch = GitBranch(repoLocation: config.primaryRepo, branch: config.primaryBranch)
             let gitClient = GitClientImpl(repoRoot: config.repoRoot, primary: primaryGitBranch, shell: shellGetStdout)
-            let pathRemapper = try StringDependenciesRemapperFactory().build(
-                orderKeys: config.rewrittenEnvs,
+            let envsRemapper = try StringDependenciesRemapperFactory().build(
+                orderKeys: DependenciesMapping.rewrittenEnvs,
                 envs: env,
                 customMappings: config.outOfBandMappings
             )
@@ -155,6 +145,19 @@ public class XCPostbuild {
                 fileDependeciesReaderFactory: fileReaderFactory,
                 dirScanner: fileManager
             )
+            // As the PostbuildContext assumes file location and filename (`all-product-headers.yaml`)
+            // do not fail in case of a missing headers overlay file. In the future, all overlay files could be
+            // captured from the swiftc invocation similarly is stored in the `history.compile` for the consumer mode.
+//            let overlayReader = JsonOverlayReader(
+//                context.overlayHeadersPath,
+//                mode: .bestEffort,
+//                fileReader: fileManager
+//            )
+//            let overlayRemapper = OverlayDependenciesRemapper(
+//                overlayReader: overlayReader
+//            )
+//            let pathRemapper = DependenciesRemapperComposite([overlayRemapper, envsRemapper])
+            let pathRemapper = DependenciesRemapperComposite([envsRemapper])
             let dependencyProcessor = DependencyProcessorImpl(
                 xcode: context.xcodeDir,
                 product: context.productsDir,

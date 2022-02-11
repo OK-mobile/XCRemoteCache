@@ -84,7 +84,7 @@ public struct XCRemoteCacheConfig: Encodable {
     /// Number of retries for upload requests
     var uploadRetries: Int = 3
     /// Extra headers appended to all remote HTTP(S) requests
-    var requestCustomHeaders: [String: String]?
+    var requestCustomHeaders: [String: String] = [:]
     /// Filename (without an extension) of the compilation input file that is used
     /// as a fake compilation for the forced-cached target (aka thin target)
     /// The filename has to be exclusive nor a suffix of any compilation file in a target
@@ -129,14 +129,8 @@ public struct XCRemoteCacheConfig: Encodable {
     /// `/CoolLibrary/main.swift`will be represented as `$(COOL_LIBRARY)/main.swift`).
     /// Warning: remapping order is not-deterministic so avoid remappings with multiple matchings.
     var outOfBandMappings: [String: String] = [:]
-    /// Specifies which ENVs should be rewritten in the dependencies generation to make generic (paths agnostics)
-    var rewrittenEnvs: [String] = DependenciesMapping.rewrittenEnvs
-    /// List of all excluder targets to downloaded
-    var excludedDownloadTargets: [String]?
     /// If true, SSL certificate validation is disabled
     var disableCertificateVerification: Bool = false
-    /// if true build ignores remote cache
-    var disabledByUser: Bool = false
 }
 
 extension XCRemoteCacheConfig {
@@ -188,11 +182,7 @@ extension XCRemoteCacheConfig {
         merge.AWSRegion = scheme.AWSRegion ?? AWSRegion
         merge.AWSService = scheme.AWSService ?? AWSService
         merge.outOfBandMappings = scheme.outOfBandMappings ?? outOfBandMappings
-        merge.rewrittenEnvs = rewrittenEnvs + (scheme.rewrittenEnvs ?? [])
-        merge.excludedDownloadTargets = scheme.excludedDownloadTargets ?? excludedDownloadTargets
-        
         merge.disableCertificateVerification = scheme.disableCertificateVerification ?? disableCertificateVerification
-        merge.disabledByUser = scheme.disabledByUser ?? disabledByUser
         return merge
     }
 
@@ -253,10 +243,7 @@ struct ConfigFileScheme: Decodable {
     let AWSRegion: String?
     let AWSService: String?
     let outOfBandMappings: [String: String]?
-    let rewrittenEnvs: [String]?
-    let excludedDownloadTargets: [String]?
     let disableCertificateVerification: Bool?
-    let disabledByUser: Bool?
 
     // Yams library doesn't support encoding strategy, see https://github.com/jpsim/Yams/issues/84
     enum CodingKeys: String, CodingKey {
@@ -300,10 +287,7 @@ struct ConfigFileScheme: Decodable {
         case AWSRegion = "aws_region"
         case AWSService = "aws_service"
         case outOfBandMappings = "out_of_band_mappings"
-        case rewrittenEnvs = "rewritten_envs"
-        case excludedDownloadTargets = "excluded_download_targets"
         case disableCertificateVerification = "disable_certificate_verification"
-        case disabledByUser = "disabled_by_user"
     }
 }
 

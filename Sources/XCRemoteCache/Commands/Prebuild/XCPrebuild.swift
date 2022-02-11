@@ -115,11 +115,23 @@ public class XCPrebuild {
             )
             let client: NetworkClient = config.disableHttpCache ? networkClient : cacheNetworkClient
             let remoteNetworkClient = RemoteNetworkClientImpl(client, urlBuilder)
-            let pathRemapper = try StringDependenciesRemapperFactory().build(
-                orderKeys: config.rewrittenEnvs,
+            let envsRemapper = try StringDependenciesRemapperFactory().build(
+                orderKeys: DependenciesMapping.rewrittenEnvs,
                 envs: env,
                 customMappings: config.outOfBandMappings
             )
+            // As PrebuildContext assumes file location and its filename (`all-product-headers.yaml`)
+            // do not fail in case of a missing headers overlay file.
+//            let overlayReader = JsonOverlayReader(
+//                context.overlayHeadersPath,
+//                mode: .bestEffort,
+//                fileReader: fileManager
+//            )
+//            let overlayRemapper = OverlayDependenciesRemapper(
+//                overlayReader: overlayReader
+//            )
+//            let pathRemapper = DependenciesRemapperComposite([overlayRemapper, envsRemapper])
+            let pathRemapper = DependenciesRemapperComposite([envsRemapper])
             let filesFingerprintGenerator = FingerprintAccumulatorImpl(
                 algorithm: MD5Algorithm(),
                 fileManager: fileManager

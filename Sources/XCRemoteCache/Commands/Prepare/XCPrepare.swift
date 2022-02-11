@@ -18,7 +18,6 @@
 // under the License.
 
 import Foundation
-import Yams
 
 /// Switch between Online/Offline modes
 public enum XCPrepareMode {
@@ -97,9 +96,7 @@ public class XCPrepare {
                 fallbackServer: context.recommendedCacheAddress,
                 networkClient: networkClient
             )
-            if !config.disabledByUser {
-                context.recommendedCacheAddress = try serverProbe.determineRemoteServer()
-            }
+            context.recommendedCacheAddress = try serverProbe.determineRemoteServer()
             var networkClients: [RemoteNetworkClient] = []
             for platform in platforms {
                 for configuration in configurations {
@@ -149,7 +146,7 @@ public class XCPrepare {
                 globalCacheSwitcher: globalCacheSwitcher,
                 cacheInvalidator: cacheInvalidator
             )
-            let prepareResult = try prepare.prepare(disabled: config.disabledByUser)
+            let prepareResult = try prepare.prepare()
             try outputResult(prepareResult)
         } catch GitClientError.missingPrimaryRepo(let repo) {
             exit(1, """

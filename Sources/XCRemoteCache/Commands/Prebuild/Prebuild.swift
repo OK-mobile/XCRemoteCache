@@ -57,13 +57,13 @@ class Prebuild {
 
     // swiftlint:disable:next function_body_length
     public func perform() throws -> PrebuildResult {
-        guard case .available(let commit) = context.remoteCommit, !isUnavailableContext() else {
+        guard case .available(let commit) = context.remoteCommit else {
             return .incompatible
         }
         do {
             let metaData = try networkClient.fetch(.meta(commit: commit))
             let meta = try metaReader.read(data: metaData)
-            let localDependencies = remapper.replace(genericPaths: meta.dependencies).map(URL.init(fileURLWithPath:))
+            let localDependencies = try remapper.replace(genericPaths: meta.dependencies).map(URL.init(fileURLWithPath:))
             let localFingerprint = try generateFingerprint(for: localDependencies)
             if localFingerprint.raw != meta.rawFingerprint {
                 if context.forceCached {
@@ -113,12 +113,5 @@ class Prebuild {
     public func generateFingerprint(for files: [URL]) throws -> Fingerprint {
         try files.forEach(fingerprintAccumulator.append)
         return try fingerprintAccumulator.generate()
-    }
-    
-    private func isUnavailableContext() -> Bool {
-        guard let excludedDownloadTargets = context.excludedDownloadTargets else {
-            return false
-        }
-        return excludedDownloadTargets.contains(context.targetName)
     }
 }
